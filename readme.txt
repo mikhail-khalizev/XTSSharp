@@ -7,7 +7,7 @@ Usage
 -----
 
 Main entry point is the XtsAes128 and XtsAes256 classes, as well as the XtsStream
-class. It should be pretty self explanitory. See the unit tests for more information.
+class. It should be pretty self explanatory. See the unit tests for more information.
 
 Other notes
 -----------
