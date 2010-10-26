@@ -1,7 +1,5 @@
-
 /build
 /release
-
 bin/
 **/bin/
 **/*/bin/
@@ -10,9 +8,6 @@ obj/
 **/obj/*
 **/*/obj/*
 **/**/*/obj/
-
 *.user
 *.suo
-
 *.resharper
-src/version/AssemblyVersion.cs
