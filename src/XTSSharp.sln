@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dwakn.Security.Cryptography.XTS", "Dwakn.Security.Cryptography.XTS\Dwakn.Security.Cryptography.XTS.csproj", "{DD00C9B5-FCCF-44E6-9B4C-CBADD08A2104}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XTSSharp", "XTSSharp\XTSSharp.csproj", "{DD00C9B5-FCCF-44E6-9B4C-CBADD08A2104}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dwakn.Security.Cryptography.XTS.Test", "Dwakn.Security.Cryptography.XTS.Test\Dwakn.Security.Cryptography.XTS.Test.csproj", "{CC8569AA-1F79-4AFD-A55A-BCC385456551}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XTSSharp.Test", "XTSSharp.Test\XTSSharp.Test.csproj", "{CC8569AA-1F79-4AFD-A55A-BCC385456551}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
