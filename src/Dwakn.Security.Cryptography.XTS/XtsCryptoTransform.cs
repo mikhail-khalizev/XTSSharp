@@ -9,6 +9,11 @@ namespace Dwakn.Security.Cryptography.XTS
 		private readonly ICryptoTransform _key1;
 		private readonly ICryptoTransform _key2;
 
+		private readonly byte[] _cc = new byte[16];
+		private readonly byte[] _pp = new byte[16];
+		private readonly byte[] _t = new byte[16];
+		private readonly byte[] _tweak = new byte[16];
+
 		public XtsCryptoTransform(ICryptoTransform key1, ICryptoTransform key2, bool decrypting)
 		{
 			if (key1 == null)
@@ -32,14 +37,9 @@ namespace Dwakn.Security.Cryptography.XTS
 
 		#endregion
 
-		byte[] tweak = new byte[16];
-		byte[] pp = new byte[16];
-		byte[] cc = new byte[16];
-		byte[] t = new byte[16];
-
 		public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset, ulong currentSector)
 		{
-			FillArrayFromSector(tweak, currentSector);
+			FillArrayFromSector(_tweak, currentSector);
 
 			int lim;
 
@@ -48,7 +48,7 @@ namespace Dwakn.Security.Cryptography.XTS
 			var mo = inputCount & 15;
 
 			/* encrypt the tweak */
-			_key2.TransformBlock(tweak, 0, tweak.Length, t, 0);
+			_key2.TransformBlock(_tweak, 0, _tweak.Length, _t, 0);
 
 			/* for i = 0 to m-2 do */
 			if (mo == 0)
@@ -58,7 +58,7 @@ namespace Dwakn.Security.Cryptography.XTS
 
 			for (var i = 0; i < lim; i++)
 			{
-				TweakCrypt(inputBuffer, inputOffset, outputBuffer, outputOffset, t);
+				TweakCrypt(inputBuffer, inputOffset, outputBuffer, outputOffset, _t);
 				inputOffset += 16;
 				outputOffset += 16;
 			}
@@ -68,48 +68,48 @@ namespace Dwakn.Security.Cryptography.XTS
 			{
 				if (_decrypting)
 				{
-					Buffer.BlockCopy(t, 0, cc, 0, 16);
-					MultiplyByX(cc);
+					Buffer.BlockCopy(_t, 0, _cc, 0, 16);
+					MultiplyByX(_cc);
 
 					/* CC = tweak encrypt block m-1 */
-					TweakCrypt(inputBuffer, inputOffset, pp, 0, cc);
+					TweakCrypt(inputBuffer, inputOffset, _pp, 0, _cc);
 
 					/* Cm = first ptlen % 16 bytes of CC */
 					int i;
 					for (i = 0; i < mo; i++)
 					{
-						cc[i] = inputBuffer[16 + i + inputOffset];
-						outputBuffer[16 + i + outputOffset] = pp[i];
+						_cc[i] = inputBuffer[16 + i + inputOffset];
+						outputBuffer[16 + i + outputOffset] = _pp[i];
 					}
 
 					for (; i < 16; i++)
 					{
-						cc[i] = pp[i];
+						_cc[i] = _pp[i];
 					}
 
 					/* Cm-1 = Tweak encrypt PP */
-					TweakCrypt(cc, 0, outputBuffer, outputOffset, t);
+					TweakCrypt(_cc, 0, outputBuffer, outputOffset, _t);
 				}
 				else
 				{
 					/* CC = tweak encrypt block m-1 */
-					TweakCrypt(inputBuffer, inputOffset, cc, 0, t);
+					TweakCrypt(inputBuffer, inputOffset, _cc, 0, _t);
 
 					/* Cm = first ptlen % 16 bytes of CC */
 					int i;
 					for (i = 0; i < mo; i++)
 					{
-						pp[i] = inputBuffer[16 + i + inputOffset];
-						outputBuffer[16 + i + outputOffset] = cc[i];
+						_pp[i] = inputBuffer[16 + i + inputOffset];
+						outputBuffer[16 + i + outputOffset] = _cc[i];
 					}
 
 					for (; i < 16; i++)
 					{
-						pp[i] = cc[i];
+						_pp[i] = _cc[i];
 					}
 
 					/* Cm-1 = Tweak encrypt PP */
-					TweakCrypt(pp, 0, outputBuffer, outputOffset, t);
+					TweakCrypt(_pp, 0, outputBuffer, outputOffset, _t);
 				}
 			}
 
@@ -132,11 +132,11 @@ namespace Dwakn.Security.Cryptography.XTS
 		{
 			for (var x = 0; x < 16; x++)
 			{
-				outputBuffer[x + outputOffset] = (byte)(inputBuffer[x + inputOffset] ^ t[x]);
+				outputBuffer[x + outputOffset] = (byte) (inputBuffer[x + inputOffset] ^ t[x]);
 			}
 
 			_key1.TransformBlock(outputBuffer, outputOffset, 16, outputBuffer, outputOffset);
-			
+
 			for (var x = 0; x < 16; x++)
 			{
 				outputBuffer[x + outputOffset] = (byte) (outputBuffer[x + outputOffset] ^ t[x]);
