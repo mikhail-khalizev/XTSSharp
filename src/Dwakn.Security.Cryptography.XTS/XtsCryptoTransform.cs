@@ -32,14 +32,15 @@ namespace Dwakn.Security.Cryptography.XTS
 
 		#endregion
 
+		byte[] tweak = new byte[16];
+		byte[] pp = new byte[16];
+		byte[] cc = new byte[16];
+		byte[] t = new byte[16];
+
 		public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset, ulong currentSector)
 		{
-			var tweak = new byte[16];
 			FillArrayFromSector(tweak, currentSector);
 
-			var pp = new byte[16];
-			var cc = new byte[16];
-			var t = new byte[16];
 			int lim;
 
 			/* get number of blocks */
@@ -129,14 +130,12 @@ namespace Dwakn.Security.Cryptography.XTS
 
 		private void TweakCrypt(byte[] inputBuffer, int inputOffset, byte[] outputBuffer, int outputOffset, byte[] t)
 		{
-			var tempT = new byte[16];
-
 			for (var x = 0; x < 16; x++)
 			{
-				tempT[x] = (byte) (inputBuffer[x + inputOffset] ^ t[x]);
+				outputBuffer[x + outputOffset] = (byte)(inputBuffer[x + inputOffset] ^ t[x]);
 			}
 
-			_key1.TransformBlock(tempT, 0, 16, outputBuffer, outputOffset);
+			_key1.TransformBlock(outputBuffer, outputOffset, 16, outputBuffer, outputOffset);
 			
 			for (var x = 0; x < 16; x++)
 			{

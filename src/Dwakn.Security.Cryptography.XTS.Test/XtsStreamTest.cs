@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using NUnit.Framework;
 
 namespace Dwakn.Security.Cryptography.XTS.Test
@@ -16,8 +13,8 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 		{
 			var b = new byte[1024];
 
-			var key1 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-			var key2 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			var key1 = new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+			var key2 = new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 			var xts = XtsAes128.Create(key1, key2);
 
 			using (var s = new MemoryStream())
@@ -38,44 +35,146 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 					Assert.IsTrue(temp.All(x => x == 0), temp.ToHex());
 				}
 			}
+		}
 
+		/// <summary>
+		/// Tests for memory leaks
+		/// </summary>
+		[Test]
+		[Ignore("Used for memory leak testing")]
+		public void Long_running_write()
+		{
+			var key1 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			var key2 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			var xts = XtsAes128.Create(key1, key2);
 
+			var data = new byte[1024];
+
+			using (var nullStream = Stream.Null)
+			using (var randomInfiniteStream = new RandomInfiniteStream())
+			{
+				using (var xtsStream = new XtsSectorStream(nullStream, 1024, xts))
+				{
+					while (true)
+					{
+						randomInfiniteStream.Read(data, 0, data.Length);
+						xtsStream.Write(data, 0, data.Length);
+					}
+				}
+			}
 		}
 
 		[Test]
-		public void Rws_read_write()
+		public void Rws_random_read()
 		{
-			var b = new byte[1024];
+			var random = new Random(1);
+			var data = new byte[1024*10];
+			random.NextBytes(data);
 
-			var key1 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-			var key2 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			var key1 = new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+			var key2 = new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 			var xts = XtsAes128.Create(key1, key2);
 
 			using (var s = new MemoryStream())
 			{
 				using (var xtsStream = new XtsSectorStream(s, 1024, xts))
-				using (var stream = new ReadWriteSectorStream(xtsStream))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
-					stream.Write(b, 0, b.Length);
+					stream.Write(data, 0, data.Length);
 				}
 
-				Assert.AreEqual(b.Length, s.Length);
+				Assert.AreEqual(data.Length, s.Length);
 
 				s.Seek(0, SeekOrigin.Begin);
 
 				using (var xtsStream = new XtsSectorStream(s, 1024, xts))
-				using (var stream = new ReadWriteSectorStream(xtsStream))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
-					//stream.Seek((10 * 1024) + 5, SeekOrigin.Begin);
+					for (int x = 0; x < 1000; x++)
+					{
+						var index = random.Next(0, data.Length - 1);
+						var bytes = random.Next(0, Math.Min(1024, data.Length - 1 - index));
+						stream.Position = index;
 
-					var temp = new byte[b.Length];
-					stream.Read(temp, 0, temp.Length);
+						//read some data
+						var r = new byte[bytes];
+						stream.Read(r, 0, bytes);
 
-					Assert.IsTrue(temp.All(x => x == 0), temp.ToHex());
+						Assert.AreEqual(data.Skip(index).Take(bytes).ToArray(), r);
+					}
 				}
 			}
+		}
 
+		[Test]
+		public void Rws_random_read_write()
+		{
+			const int sectorSize = 1024;
 
+			var random = new Random(1);
+			var data = new byte[sectorSize * 10];
+			random.NextBytes(data);
+
+			var key1 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+			var key2 = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+			var xts = XtsAes128.Create(key1, key2);
+
+			using (var s = new MemoryStream())
+			{
+				using (var xtsStream = new XtsSectorStream(s, sectorSize, xts))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
+				{
+					stream.Write(data, 0, data.Length);
+				}
+
+				Assert.AreEqual(data.Length, s.Length);
+
+				s.Seek(0, SeekOrigin.Begin);
+
+				using (var xtsStream = new XtsSectorStream(s, sectorSize, xts))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
+				{
+					for (int x = 0; x < 100; x++)
+					{
+						var isWrite = random.Next(0, 2) > 0;
+						var index = random.Next(0, data.Length - 1);
+						var bytes = random.Next(0, Math.Min(sectorSize, data.Length - 1 - index));
+						
+						if (isWrite)
+						{
+							stream.Position = index;
+							var r = new byte[bytes];
+							random.NextBytes(r);
+							Buffer.BlockCopy(r, 0, data, index, bytes);
+
+							stream.Write(r, 0, r.Length);
+						}
+
+						{
+							stream.Position = index;
+							//read some data
+							var r = new byte[bytes];
+							stream.Read(r, 0, bytes);
+
+							var reference = data.Skip(index).Take(bytes).ToArray();
+
+							try
+							{
+								Assert.AreEqual(reference, r);
+							}
+							catch (Exception)
+							{
+								Console.WriteLine(reference.ToHex());
+								Console.WriteLine(r.ToHex());
+								
+								throw;
+							}
+						}
+					}
+				}
+			}
 		}
 
 		[Test]
@@ -91,7 +190,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream())
 			{
 				using (var xtsStream = new XtsSectorStream(s, 1024, xts))
-				using (var stream = new ReadWriteSectorStream(xtsStream))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
 					stream.Write(b, 0, b.Length);
 				}
@@ -99,9 +198,9 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 				Assert.AreEqual(b.Length, s.Length);
 
 				s.Seek(0, SeekOrigin.Begin);
-				
+
 				using (var xtsStream = new XtsSectorStream(s, 1024, xts))
-				using (var stream = new ReadWriteSectorStream(xtsStream))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
 					stream.Seek((10*1024) + 5, SeekOrigin.Begin);
 
@@ -114,55 +213,37 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 		}
 
 		[Test]
-		public void Rws_random_read()
+		public void Rws_read_write()
 		{
-			var random = new Random(1);
-			var data = new byte[1024*10];
-			random.NextBytes(data);
-			
+			var b = new byte[1024];
+
 			var key1 = new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 			var key2 = new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
 			var xts = XtsAes128.Create(key1, key2);
 
 			using (var s = new MemoryStream())
 			{
 				using (var xtsStream = new XtsSectorStream(s, 1024, xts))
-				using (var stream = new ReadWriteSectorStream(xtsStream))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
-					stream.Write(data, 0, data.Length);
+					stream.Write(b, 0, b.Length);
 				}
 
-				Assert.AreEqual(data.Length, s.Length);
+				Assert.AreEqual(b.Length, s.Length);
 
 				s.Seek(0, SeekOrigin.Begin);
-				Console.WriteLine("-------------------------------------------");
-				
+
 				using (var xtsStream = new XtsSectorStream(s, 1024, xts))
-				using (var stream = new ReadWriteSectorStream(xtsStream))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
-					stream.Position = 7716;
-					
-					byte[] t = new byte[956];
-					stream.Read(t, 0, t.Length);
-					
-					Console.WriteLine("-------------------------------------------");
+					//stream.Seek((10 * 1024) + 5, SeekOrigin.Begin);
 
-					for (int x = 0; x < 1000; x++)
-					{
-						var index = random.Next(0, data.Length - 1);
-						var bytes = random.Next(0, Math.Min(1024, data.Length - 1 - index));
-						stream.Position = index;
+					var temp = new byte[b.Length];
+					stream.Read(temp, 0, temp.Length);
 
-						//read some data
-						var r = new byte[bytes];
-						stream.Read(r, 0, bytes);
-
-						Assert.AreEqual(data.Skip(index).Take(bytes).ToArray(), r);
-					}
+					Assert.IsTrue(temp.All(x => x == 0), temp.ToHex());
 				}
 			}
-
 		}
 	}
 }

@@ -1,15 +1,20 @@
-﻿using System;
-using System.IO;
-using System.Security.Cryptography;
+﻿using System.IO;
 
 namespace Dwakn.Security.Cryptography.XTS
 {
 	public class XtsSectorStream : BaseSectorStream
 	{
-		private readonly Xts _xts;
+		public const int DEFAULT_SECTOR_SIZE = 512;
+
 		private readonly byte[] _tempBuffer;
-		private XtsCryptoTransform _encryptor;
+		private readonly Xts _xts;
 		private XtsCryptoTransform _decryptor;
+		private XtsCryptoTransform _encryptor;
+
+		public XtsSectorStream(Stream baseStream, Xts xts)
+			: this(baseStream, DEFAULT_SECTOR_SIZE, xts)
+		{
+		}
 
 		public XtsSectorStream(Stream baseStream, int sectorSize, Xts xts)
 			: base(baseStream, sectorSize)
@@ -42,8 +47,6 @@ namespace Dwakn.Security.Cryptography.XTS
 			if (_encryptor == null)
 				_encryptor = _xts.CreateEncryptor();
 
-			Console.WriteLine("Encrypting sector " + currentSector);
-
 			int transformedCount = _encryptor.TransformBlock(buffer, offset, count, _tempBuffer, 0, currentSector);
 
 			base.Write(_tempBuffer, 0, transformedCount);
@@ -62,8 +65,6 @@ namespace Dwakn.Security.Cryptography.XTS
 
 			if (_decryptor == null)
 				_decryptor = _xts.CreateDecryptor();
-
-			Console.WriteLine("Decrypting sector " + currentSector);
 
 			return _decryptor.TransformBlock(_tempBuffer, 0, ret, buffer, offset, currentSector);
 		}

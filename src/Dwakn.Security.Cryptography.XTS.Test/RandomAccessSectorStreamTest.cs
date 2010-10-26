@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace Dwakn.Security.Cryptography.XTS.Test
 {
 	[TestFixture]
-	public class ReadWriteSectorStreamTest
+	public class RandomAccessSectorStreamTest
 	{
 		[Test]
 		public void Can_read()
@@ -19,7 +19,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream(b))
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					foreach (var t in b)
 					{
@@ -43,7 +43,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream(b))
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					var r = new byte[b.Length - 512];
 					stream.Read(r, 0, r.Length);
@@ -64,18 +64,24 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream())
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
-				{/*
+				using (var stream = new RandomAccessSectorStream(sectorS))
+				{
+					/*
 					stream.Write(b, 0, 512);
 					stream.Write(b, 512, 512);
 					stream.Write(b, 1024, 512);
-					stream.Write(b, 1536, 512);*/
+					stream.Write(b, 1536, 512);
+					*/
 					
 					for (var x = 0; x < b.Length; x++)
 					{
 						stream.Write(b, x, 1);
 					}
 				}
+
+				Console.WriteLine(b.ToHex());
+				Console.WriteLine(s.ToArray().ToHex());
+
 
 				Assert.AreEqual(b.Length, s.Length);
 				Assert.AreEqual(b, s.ToArray());
@@ -93,7 +99,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream())
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Write(b, 0, b.Length/2);
 					stream.Write(b, b.Length/2, b.Length/2);
@@ -115,19 +121,21 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream())
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					for (var x = 0; x < b.Length; x++)
 					{
 						stream.Write(b, x, 1);
 					}
+
+					Console.WriteLine("");
 				}
 
 				var ending = s.ToArray().Skip(b.Length).ToArray();
 
 				Assert.AreEqual(b.Length, s.Length - 10);
 				Assert.AreEqual(b, s.ToArray().Take(b.Length).ToArray());
-				Assert.IsTrue(s.ToArray().Skip(b.Length).All(x => x == 0));
+				Assert.IsTrue(s.ToArray().Skip(b.Length).All(x => x == 0), s.ToArray().Skip(b.Length).ToHex());
 			}
 		}
 
@@ -142,7 +150,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream(b))
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Seek(1024 + 512, SeekOrigin.Begin);
 
@@ -167,7 +175,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream(b))
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Seek(1024 + 512, SeekOrigin.Begin);
 
@@ -192,7 +200,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			using (var s = new MemoryStream(b))
 			{
 				using (var sectorS = new BaseSectorStream(s, 1024))
-				using (var stream = new ReadWriteSectorStream(sectorS))
+				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Seek(1024 + 512, SeekOrigin.Begin);
 
@@ -207,5 +215,68 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 				Assert.AreEqual(empty, b.Skip(512 + read.Length).Take(read.Length).ToArray());
 			}
 		}
+
+
+		[Test]
+		public void Can_random_read_write()
+		{
+			var random = new Random(1);
+			var data = new byte[1024 * 10];
+			random.NextBytes(data);
+
+			using (var s = new MemoryStream())
+			{
+				using (var xtsStream = new BaseSectorStream(s, 1024))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
+				{
+					stream.Write(data, 0, data.Length);
+				}
+
+				Assert.AreEqual(data.Length, s.Length);
+
+				s.Seek(0, SeekOrigin.Begin);
+
+				using (var xtsStream = new BaseSectorStream(s, 1024))
+				using (var stream = new RandomAccessSectorStream(xtsStream))
+				{
+					for (int x = 0; x < 10; x++)
+					{
+						var isWrite = random.Next(0, 2) > 0;
+						var index = random.Next(0, data.Length - 1);
+						var bytes = random.Next(0, Math.Min(1024, data.Length - 1 - index));
+
+						if (isWrite)
+						{
+							stream.Position = index;
+							var r = new byte[bytes];
+							random.NextBytes(r);
+							Buffer.BlockCopy(r, 0, data, index, bytes);
+
+							stream.Write(r, 0, r.Length);
+						}
+
+						{
+							stream.Position = index;
+							//read some data
+							var r = new byte[bytes];
+							stream.Read(r, 0, bytes);
+
+							try
+							{
+								Assert.AreEqual(data.Skip(index).Take(bytes).ToArray(), r);
+							}
+							catch (Exception)
+							{
+								Console.WriteLine(data.Skip(index).Take(bytes).ToHex());
+								Console.WriteLine(r.ToHex());
+
+								throw;
+							}
+						}
+					}
+				}
+			}
+		}
+
 	}
 }

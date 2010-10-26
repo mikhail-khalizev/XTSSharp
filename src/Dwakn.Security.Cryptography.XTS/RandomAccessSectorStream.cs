@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Dwakn.Security.Cryptography.XTS
 {
-	public class ReadWriteSectorStream : Stream
+	public class RandomAccessSectorStream : Stream
 	{
 		private readonly byte[] _buffer;
 		private readonly int _bufferSize;
@@ -12,7 +12,7 @@ namespace Dwakn.Security.Cryptography.XTS
 		private bool _bufferLoaded;
 		private int _bufferPos;
 
-		public ReadWriteSectorStream(BaseSectorStream s)
+		public RandomAccessSectorStream(BaseSectorStream s)
 		{
 			_s = s;
 			_buffer = new byte[s.SectorSize];
@@ -174,14 +174,18 @@ namespace Dwakn.Security.Cryptography.XTS
 		private void ReadSector()
 		{
 			if (_s.Position == _s.Length)
+			{
 				return;
+			}
 
 			var bytesRead = _s.Read(_buffer, 0, _buffer.Length);
-			Array.Clear(_buffer, bytesRead, _buffer.Length - bytesRead);
+
+			//clean the end of it
+			if (bytesRead != _bufferSize)
+				Array.Clear(_buffer, bytesRead, _buffer.Length - bytesRead);
 
 			_bufferLoaded = true;
 			_bufferPos = 0;
-
 			_bufferDirty = false;
 		}
 
@@ -193,17 +197,12 @@ namespace Dwakn.Security.Cryptography.XTS
 				_s.Seek(-_bufferSize, SeekOrigin.Current);
 			}
 
-			//clean the end of it
-			if (_bufferPos != _bufferSize)
-				Array.Clear(_buffer, _bufferPos, _bufferSize - _bufferPos);
-
 			//write it
 			_s.Write(_buffer, 0, _bufferSize);
 			_bufferDirty = false;
 			_bufferLoaded = false;
 			_bufferPos = 0;
-
-			_bufferDirty = false;
+			Array.Clear(_buffer, 0, _bufferSize);
 		}
 	}
 }

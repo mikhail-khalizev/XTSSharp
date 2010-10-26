@@ -78,9 +78,23 @@ namespace Dwakn.Security.Cryptography.XTS
 
 		public override long Seek(long offset, SeekOrigin origin)
 		{
-			ValidateSizeMultiple(offset);
+			long newPosition;
+			switch (origin)
+			{
+				case SeekOrigin.Begin:
+					newPosition = offset;
+					break;
+				case SeekOrigin.End:
+					newPosition = Length - offset;
+					break;
+				default:
+					newPosition = Position + offset;
+					break;
+			}
 
-			return _baseStream.Seek(offset, origin);
+			Position = newPosition;
+
+			return newPosition;
 		}
 
 		public override void SetLength(long value)
