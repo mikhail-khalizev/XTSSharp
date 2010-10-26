@@ -9,6 +9,12 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 	[TestFixture]
 	public class XtsTest
 	{
+		/*
+		 * These are tests that compare this implmentation with 
+		 * specified test-vectors.
+		 * 
+		 */
+
 		[Test]
 		public void Test1()
 		{
@@ -226,7 +232,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var destination = new MemoryStream())
 			{
-				using (var stream = new XtsSectorStream(destination, sectorSize, xts))
+				using (var stream = new XtsSectorStream(destination, xts, sectorSize))
 				{
 					int current = 0;
 					while (current < buffer.Length)
@@ -250,7 +256,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 				var outBuffer = new byte[buffer.Length];
 
-				using (var stream = new XtsSectorStream(destination, sectorSize, xts))
+				using (var stream = new XtsSectorStream(destination, xts, sectorSize))
 				{
 					int offset = 0;
 

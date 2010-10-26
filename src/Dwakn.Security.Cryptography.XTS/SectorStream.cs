@@ -4,39 +4,28 @@ using System.IO;
 namespace Dwakn.Security.Cryptography.XTS
 {
 	/// <summary>
-	/// A wraps a sector based stream and provides random access to it
+	/// Sector-based stream
 	/// </summary>
-	public class RandomAccessSectorStream : Stream
+	public class SectorStream : Stream
 	{
-		private readonly byte[] _buffer;
-		private readonly int _bufferSize;
-		private readonly SectorStream _s;
-		private readonly bool _isStreamOwned;
-		private bool _bufferDirty;
-		private bool _bufferLoaded;
-		private int _bufferPos;
+		private readonly Stream _baseStream;
+		private ulong _currentSector;
 
 		/// <summary>
 		/// Creates a new stream
 		/// </summary>
-		/// <param name="s">Base stream</param>
-		public RandomAccessSectorStream(SectorStream s)
-			: this(s, false)
+		/// <param name="baseStream">The base stream to read/write from</param>
+		/// <param name="sectorSize">The size of the sectors to read/write</param>
+		public SectorStream(Stream baseStream, int sectorSize)
 		{
+			SectorSize = sectorSize;
+			_baseStream = baseStream;
 		}
 
 		/// <summary>
-		/// Creates a new stream
+		/// The size of the sectors
 		/// </summary>
-		/// <param name="s">Base stream</param>
-		/// <param name="isStreamOwned">Does this stream own the base stream? i.e. should it be automatically disposed?</param>
-		public RandomAccessSectorStream(SectorStream s, bool isStreamOwned)
-		{
-			_s = s;
-			_isStreamOwned = isStreamOwned;
-			_buffer = new byte[s.SectorSize];
-			_bufferSize = s.SectorSize;
-		}
+		public int SectorSize { get; private set; }
 
 		/// <summary>
 		/// Gets a value indicating whether the current stream supports reading.
@@ -44,7 +33,7 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <returns>true if the stream supports reading; otherwise, false.</returns>
 		public override bool CanRead
 		{
-			get { return _s.CanRead; }
+			get { return _baseStream.CanRead; }
 		}
 
 		/// <summary>
@@ -53,7 +42,7 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <returns>true if the stream supports seeking; otherwise, false.</returns>
 		public override bool CanSeek
 		{
-			get { return _s.CanSeek; }
+			get { return _baseStream.CanSeek; }
 		}
 
 		/// <summary>
@@ -62,7 +51,7 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <returns>true if the stream supports writing; otherwise, false.</returns>
 		public override bool CanWrite
 		{
-			get { return _s.CanWrite; }
+			get { return _baseStream.CanWrite; }
 		}
 
 		/// <summary>
@@ -71,7 +60,7 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <returns>A long value representing the length of the stream in bytes.</returns>
 		public override long Length
 		{
-			get { return _s.Length + _bufferPos; }
+			get { return _baseStream.Length; }
 		}
 
 		/// <summary>
@@ -80,53 +69,49 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <returns>The current position within the stream.</returns>
 		public override long Position
 		{
-			get { return _bufferLoaded ? (_s.Position - _bufferSize + _bufferPos) : _s.Position + _bufferPos; }
+			get { return _baseStream.Position; }
 			set
 			{
-				if (value < 0L)
-					throw new ArgumentOutOfRangeException("value");
+				ValidateSizeMultiple(value);
 
-				var sectorPosition = (value%_bufferSize);
-				var position = value - sectorPosition;
-
-				//see if its within the current sector
-				if (_bufferLoaded)
-				{
-					var basePosition = _s.Position - _bufferSize;
-					if (value > basePosition && value < basePosition + _bufferSize)
-					{
-						_bufferPos = (int) sectorPosition;
-						return;
-					}
-				}
-				//outside the current buffer
-
-				//write it
-				if (_bufferDirty)
-					WriteSector();
-
-				_s.Position = position;
-
-				//read this sector
-				ReadSector();
-
-				//bump us forward if need be
-				_bufferPos = (int) sectorPosition;
+				_baseStream.Position = value;
+				_currentSector = (ulong) (value/SectorSize);
 			}
 		}
 
 		/// <summary>
-		/// Releases the unmanaged resources used by the <see cref="T:System.IO.Stream"/> and optionally releases the managed resources.
+		/// The current sector this stream is at
 		/// </summary>
-		/// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources. </param>
-		protected override void Dispose(bool disposing)
+		protected ulong CurrentSector
 		{
-			Flush();
+			get { return _currentSector; }
+		}
 
-			base.Dispose(disposing);
+		/// <summary>
+		/// Validates that the size is a multiple of the sector size
+		/// </summary>
+		private void ValidateSizeMultiple(long value)
+		{
+			if (value%SectorSize != 0)
+				throw new ArgumentException(string.Format("Value needs to be a multiple of {0}", SectorSize));
+		}
 
-			if (_isStreamOwned)
-				_s.Dispose();
+		/// <summary>
+		/// Validates that the size is equal to the sector size
+		/// </summary>
+		protected void ValidateSize(long value)
+		{
+			if (value != SectorSize)
+				throw new ArgumentException(string.Format("Value needs to be {0}", SectorSize));
+		}
+
+		/// <summary>
+		/// Validates that the size is equal to the sector size
+		/// </summary>
+		protected void ValidateSize(int value)
+		{
+			if (value != SectorSize)
+				throw new ArgumentException(string.Format("Value needs to be {0}", SectorSize));
 		}
 
 		/// <summary>
@@ -134,8 +119,7 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// </summary>
 		public override void Flush()
 		{
-			if (_bufferDirty)
-				WriteSector();
+			_baseStream.Flush();
 		}
 
 		/// <summary>
@@ -173,14 +157,9 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <param name="value">The desired length of the current stream in bytes.</param>
 		public override void SetLength(long value)
 		{
-			var remainder = value%_s.SectorSize;
+			ValidateSizeMultiple(value);
 
-			if (remainder > 0)
-			{
-				value = (value - remainder) + _bufferSize;
-			}
-
-			_s.SetLength(value);
+			_baseStream.SetLength(value);
 		}
 
 		/// <summary>
@@ -192,30 +171,11 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <param name="count">The maximum number of bytes to be read from the current stream.</param>
 		public override int Read(byte[] buffer, int offset, int count)
 		{
-			if (Position + count > _s.Length)
-				throw new IndexOutOfRangeException("Attempt to read beyond end of stream");
+			ValidateSize(count);
 
-			if (!_bufferLoaded)
-				ReadSector();
-
-			var totalBytesRead = 0;
-			while (count > 0)
-			{
-				var bytesToRead = Math.Min(count, _bufferSize - _bufferPos);
-
-				Buffer.BlockCopy(_buffer, _bufferPos, buffer, offset, bytesToRead);
-
-				offset += bytesToRead;
-				_bufferPos += bytesToRead;
-				count -= bytesToRead;
-
-				totalBytesRead += bytesToRead;
-
-				if (_bufferPos == _bufferSize)
-					ReadSector();
-			}
-
-			return totalBytesRead;
+			var ret = _baseStream.Read(buffer, offset, count);
+			_currentSector++;
+			return ret;
 		}
 
 		/// <summary>
@@ -226,68 +186,10 @@ namespace Dwakn.Security.Cryptography.XTS
 		/// <param name="count">The number of bytes to be written to the current stream.</param>
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			while (count > 0)
-			{
-				if (!_bufferLoaded)
-					ReadSector();
+			ValidateSize(count);
 
-				var bytesToWrite = Math.Min(count, _bufferSize - _bufferPos);
-
-				Buffer.BlockCopy(buffer, offset, _buffer, _bufferPos, bytesToWrite);
-
-				offset += bytesToWrite;
-				_bufferPos += bytesToWrite;
-				count -= bytesToWrite;
-				_bufferDirty = true;
-
-				if (_bufferPos == _bufferSize)
-					WriteSector();
-			}
-		}
-
-		/// <summary>
-		/// Reads a sector
-		/// </summary>
-		private void ReadSector()
-		{
-			if (_bufferLoaded && _bufferDirty)
-			{
-				WriteSector();
-			}
-
-			if (_s.Position == _s.Length)
-			{
-				return;
-			}
-
-			var bytesRead = _s.Read(_buffer, 0, _buffer.Length);
-
-			//clean the end of it
-			if (bytesRead != _bufferSize)
-				Array.Clear(_buffer, bytesRead, _buffer.Length - bytesRead);
-
-			_bufferLoaded = true;
-			_bufferPos = 0;
-			_bufferDirty = false;
-		}
-
-		/// <summary>
-		/// Writes a sector
-		/// </summary>
-		private void WriteSector()
-		{
-			if (_bufferLoaded)
-			{
-				//go back to beginning of the current sector
-				_s.Seek(-_bufferSize, SeekOrigin.Current);
-			}
-
-			//write it
-			_s.Write(_buffer, 0, _bufferSize);
-			_bufferDirty = false;
-			_bufferLoaded = false;
-			_bufferPos = 0;
-			Array.Clear(_buffer, 0, _bufferSize);
+			_baseStream.Write(buffer, offset, count);
+			_currentSector++;
 		}
 	}
 }

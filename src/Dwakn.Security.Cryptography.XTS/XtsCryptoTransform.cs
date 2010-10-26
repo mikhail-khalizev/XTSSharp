@@ -3,17 +3,27 @@ using System.Security.Cryptography;
 
 namespace Dwakn.Security.Cryptography.XTS
 {
+	/// <summary>
+	/// The actual Xts cryptography transform
+	/// </summary>
+	/// <remarks>Note that it doesn't implement ICryptoTransform, as the interface is different</remarks>
 	public class XtsCryptoTransform : IDisposable
 	{
+		private readonly byte[] _cc = new byte[16];
 		private readonly bool _decrypting;
 		private readonly ICryptoTransform _key1;
 		private readonly ICryptoTransform _key2;
 
-		private readonly byte[] _cc = new byte[16];
 		private readonly byte[] _pp = new byte[16];
 		private readonly byte[] _t = new byte[16];
 		private readonly byte[] _tweak = new byte[16];
 
+		/// <summary>
+		/// Creates a new transform
+		/// </summary>
+		/// <param name="key1">Transform 1</param>
+		/// <param name="key2">Transform 2</param>
+		/// <param name="decrypting">Is this a decryption transform?</param>
 		public XtsCryptoTransform(ICryptoTransform key1, ICryptoTransform key2, bool decrypting)
 		{
 			if (key1 == null)
@@ -29,6 +39,10 @@ namespace Dwakn.Security.Cryptography.XTS
 
 		#region IDisposable Members
 
+		/// <summary>
+		/// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+		/// </summary>
+		/// <filterpriority>2</filterpriority>
 		public void Dispose()
 		{
 			_key1.Dispose();
@@ -37,9 +51,19 @@ namespace Dwakn.Security.Cryptography.XTS
 
 		#endregion
 
-		public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset, ulong currentSector)
+		/// <summary>
+		/// Transforms a single block.
+		/// </summary>
+		/// <param name="inputBuffer"> The input for which to compute the transform.</param>
+		/// <param name="inputOffset">The offset into the input byte array from which to begin using data.</param>
+		/// <param name="inputCount">The number of bytes in the input byte array to use as data.</param>
+		/// <param name="outputBuffer">The output to which to write the transform.</param>
+		/// <param name="outputOffset">The offset into the output byte array from which to begin writing data.</param>
+		/// <param name="sector">The sector number of the block</param>
+		/// <returns>The number of bytes written.</returns>
+		public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset, ulong sector)
 		{
-			FillArrayFromSector(_tweak, currentSector);
+			FillArrayFromSector(_tweak, sector);
 
 			int lim;
 
@@ -116,6 +140,11 @@ namespace Dwakn.Security.Cryptography.XTS
 			return inputCount;
 		}
 
+		/// <summary>
+		/// Fills a byte array from a sector number
+		/// </summary>
+		/// <param name="value">The destination</param>
+		/// <param name="sector">The sector number</param>
 		private static void FillArrayFromSector(byte[] value, ulong sector)
 		{
 			value[7] = (byte) ((sector >> 56) & 255);
@@ -128,6 +157,9 @@ namespace Dwakn.Security.Cryptography.XTS
 			value[0] = (byte) (sector & 255);
 		}
 
+		/// <summary>
+		/// Performs the Xts TweakCrypt operation
+		/// </summary>
 		private void TweakCrypt(byte[] inputBuffer, int inputOffset, byte[] outputBuffer, int outputOffset, byte[] t)
 		{
 			for (var x = 0; x < 16; x++)

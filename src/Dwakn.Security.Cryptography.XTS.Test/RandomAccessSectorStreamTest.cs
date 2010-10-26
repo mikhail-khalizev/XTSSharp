@@ -18,7 +18,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream(b))
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					foreach (var t in b)
@@ -42,7 +42,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream(b))
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					var r = new byte[b.Length - 512];
@@ -63,7 +63,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream())
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					/*
@@ -98,7 +98,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream())
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Write(b, 0, b.Length/2);
@@ -120,7 +120,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream())
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					for (var x = 0; x < b.Length; x++)
@@ -149,7 +149,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream(b))
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Seek(1024 + 512, SeekOrigin.Begin);
@@ -174,7 +174,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream(b))
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Seek(1024 + 512, SeekOrigin.Begin);
@@ -191,7 +191,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 		{
 			var random = new Random(1);
 
-			var b = new byte[(1024 * 3)];
+			var b = new byte[(1024*3)];
 			random.NextBytes(b);
 
 			var empty = new byte[256];
@@ -199,7 +199,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 			using (var s = new MemoryStream(b))
 			{
-				using (var sectorS = new BaseSectorStream(s, 1024))
+				using (var sectorS = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(sectorS))
 				{
 					stream.Seek(1024 + 512, SeekOrigin.Begin);
@@ -221,12 +221,12 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 		public void Can_random_read_write()
 		{
 			var random = new Random(1);
-			var data = new byte[1024 * 10];
+			var data = new byte[1024*10];
 			random.NextBytes(data);
 
 			using (var s = new MemoryStream())
 			{
-				using (var xtsStream = new BaseSectorStream(s, 1024))
+				using (var xtsStream = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
 					stream.Write(data, 0, data.Length);
@@ -236,7 +236,7 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 
 				s.Seek(0, SeekOrigin.Begin);
 
-				using (var xtsStream = new BaseSectorStream(s, 1024))
+				using (var xtsStream = new SectorStream(s, 1024))
 				using (var stream = new RandomAccessSectorStream(xtsStream))
 				{
 					for (int x = 0; x < 10; x++)
@@ -278,5 +278,48 @@ namespace Dwakn.Security.Cryptography.XTS.Test
 			}
 		}
 
+		[Test]
+		public void Flushes_partial_sector_when_reading()
+		{
+			var random = new Random(1);
+
+			var b = new byte[1000];
+			random.NextBytes(b);
+
+			using (var s = new MemoryStream())
+			{
+				using (var sectorS = new SectorStream(s, 1024))
+				{
+					sectorS.Write(new byte[1024], 0, 1024);
+					sectorS.Write(new byte[1024], 0, 1024);
+				}
+
+				s.Seek(0, SeekOrigin.Begin);
+
+				using (var sectorS = new SectorStream(s, 1024))
+				using (var stream = new RandomAccessSectorStream(sectorS))
+				{
+					for (var x = 0; x < b.Length; x++)
+					{
+						stream.Write(b, x, 1);
+					}
+
+					var data = new byte[200];
+					stream.Read(data, 0, data.Length);
+				}
+
+				try
+				{
+					Assert.AreEqual(b, s.ToArray().Take(b.Length).ToArray());
+				}
+				catch (Exception)
+				{
+					Console.WriteLine(b.ToHex());
+					Console.WriteLine(s.ToArray().Take(b.Length).ToHex());
+					
+					throw;
+				}
+			}
+		}
 	}
 }
