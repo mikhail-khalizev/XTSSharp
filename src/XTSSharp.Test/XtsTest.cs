@@ -34,11 +34,8 @@ namespace XTSSharp.Test
 	[TestFixture]
 	public class XtsTest
 	{
-		/*
-		 * These are tests that compare this implmentation with 
-		 * specified test-vectors (from LibTomCrypt - http://libtom.org)
-		 * 
-		 */
+		// These are tests that compare this implementation with 
+		//  specified test-vectors (from LibTomCrypt - http://libtom.org)
 
 		[Test]
 		public void Test1()

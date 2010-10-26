@@ -32,7 +32,12 @@ namespace XTSSharp
 	/// <summary>
 	/// The actual Xts cryptography transform
 	/// </summary>
-	/// <remarks>Note that it doesn't implement ICryptoTransform, as the interface is different</remarks>
+	/// <remarks>
+	/// The reason that it doesn't implement ICryptoTransform, as the interface is different.
+	/// 
+	/// Most of the logic was taken from the LibTomCrypt project - http://libtom.org and 
+	/// converted to C#
+	/// </remarks>
 	public class XtsCryptoTransform : IDisposable
 	{
 		private readonly byte[] _cc = new byte[16];
