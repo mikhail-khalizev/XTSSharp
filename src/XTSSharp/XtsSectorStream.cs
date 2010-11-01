@@ -24,6 +24,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+using System;
 using System.IO;
 
 namespace XTSSharp
@@ -60,7 +61,19 @@ namespace XTSSharp
 		/// <param name="xts">The xts transform</param>
 		/// <param name="sectorSize">Sector size</param>
 		public XtsSectorStream(Stream baseStream, Xts xts, int sectorSize)
-			: base(baseStream, sectorSize)
+			: this(baseStream, xts, sectorSize, 0)
+		{
+		}
+
+		/// <summary>
+		/// Creates a new stream
+		/// </summary>
+		/// <param name="baseStream">The base stream</param>
+		/// <param name="xts">The xts transform</param>
+		/// <param name="sectorSize">Sector size</param>
+		/// <param name="offset">Offset to start counting sectors</param>
+		public XtsSectorStream(Stream baseStream, Xts xts, int sectorSize, long offset)
+			: base(baseStream, sectorSize, offset)
 		{
 			_xts = xts;
 			_tempBuffer = new byte[sectorSize];
@@ -103,6 +116,8 @@ namespace XTSSharp
 			//encrypt the sector
 			int transformedCount = _encryptor.TransformBlock(buffer, offset, count, _tempBuffer, 0, currentSector);
 
+			//Console.WriteLine("Encrypting sector {0}", currentSector);
+
 			//write it to the base stream
 			base.Write(_tempBuffer, 0, transformedCount);
 		}
@@ -131,7 +146,11 @@ namespace XTSSharp
 				_decryptor = _xts.CreateDecryptor();
 
 			//decrypt the sector
-			return _decryptor.TransformBlock(_tempBuffer, 0, ret, buffer, offset, currentSector);
+			var retV = _decryptor.TransformBlock(_tempBuffer, 0, ret, buffer, offset, currentSector);
+
+			//Console.WriteLine("Decrypting sector {0} == {1} bytes", currentSector, retV);
+
+			return retV;
 		}
 	}
 }

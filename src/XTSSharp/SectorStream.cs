@@ -35,17 +35,30 @@ namespace XTSSharp
 	public class SectorStream : Stream
 	{
 		private readonly Stream _baseStream;
+		private readonly long _offset;
 		private ulong _currentSector;
-
+		
 		/// <summary>
 		/// Creates a new stream
 		/// </summary>
 		/// <param name="baseStream">The base stream to read/write from</param>
 		/// <param name="sectorSize">The size of the sectors to read/write</param>
 		public SectorStream(Stream baseStream, int sectorSize)
+			: this(baseStream, sectorSize, 0)
+		{
+		}
+
+		/// <summary>
+		/// Creates a new stream
+		/// </summary>
+		/// <param name="baseStream">The base stream to read/write from</param>
+		/// <param name="sectorSize">The size of the sectors to read/write</param>
+		/// <param name="offset">Offset to start counting sectors</param>
+		public SectorStream(Stream baseStream, int sectorSize, long offset)
 		{
 			SectorSize = sectorSize;
 			_baseStream = baseStream;
+			_offset = offset;
 		}
 
 		/// <summary>
@@ -86,7 +99,7 @@ namespace XTSSharp
 		/// <returns>A long value representing the length of the stream in bytes.</returns>
 		public override long Length
 		{
-			get { return _baseStream.Length; }
+			get { return _baseStream.Length - _offset; }
 		}
 
 		/// <summary>
@@ -95,13 +108,14 @@ namespace XTSSharp
 		/// <returns>The current position within the stream.</returns>
 		public override long Position
 		{
-			get { return _baseStream.Position; }
+			get { return _baseStream.Position - _offset; }
 			set
 			{
 				ValidateSizeMultiple(value);
 
-				_baseStream.Position = value;
-				_currentSector = (ulong) (value/SectorSize);
+				//base stream gets the non-tweaked value
+				_baseStream.Position = value + _offset;
+				_currentSector = (ulong)(value / SectorSize);
 			}
 		}
 

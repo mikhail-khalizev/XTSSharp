@@ -218,8 +218,12 @@ namespace XTSSharp
 		/// <param name="count">The maximum number of bytes to be read from the current stream.</param>
 		public override int Read(byte[] buffer, int offset, int count)
 		{
-			if (Position + count > _s.Length)
-				throw new IndexOutOfRangeException("Attempt to read beyond end of stream");
+			var position = Position;
+
+			if (position + count > _s.Length)
+			{
+				count = (int) (_s.Length - position);
+			}
 
 			if (!_bufferLoaded)
 				ReadSector();
