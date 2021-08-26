@@ -39,15 +39,17 @@ namespace XTSSharp
 	/// converted to C#
 	/// </remarks>
 	public class XtsCryptoTransform : IDisposable
-	{
+    {
+        private const int BlockSize = 16;
+
 		private readonly bool _decrypting;
 		private readonly ICryptoTransform _key1;
         private readonly ICryptoTransform _key2; // tweak
 
 		// TODO Move to local variables?
-        private readonly byte[] _cc = new byte[16];
-		private readonly byte[] _pp = new byte[16];
-		private readonly byte[] _t = new byte[16];
+        private readonly byte[] _cc = new byte[BlockSize];
+		private readonly byte[] _pp = new byte[BlockSize];
+		private readonly byte[] _t = new byte[BlockSize];
 
 		/// <summary>
 		/// Creates a new transform
@@ -99,8 +101,8 @@ namespace XTSSharp
 			int lim;
 
 			/* get number of blocks */
-			var m = inputCount / 16;
-			var mo = inputCount % 16;
+			var m = inputCount / BlockSize;
+			var mo = inputCount % BlockSize;
 
 			/* encrypt the tweak */
 			_key2.TransformBlock(_t, 0, _t.Length, _t, 0);
@@ -114,55 +116,36 @@ namespace XTSSharp
 			for (var i = 0; i < lim; i++)
 			{
 				TweakCrypt(inputBuffer, inputOffset, outputBuffer, outputOffset, _t);
-				inputOffset += 16;
-				outputOffset += 16;
+				inputOffset += BlockSize;
+				outputOffset += BlockSize;
 			}
 
-			/* if ptlen not divide 16 then */
+			/* if ptlen not divide BlockSize then */
 			if (0 < mo)
-			{
+            {
+                var t1 = _t;
 				if (_decrypting)
-				{
-					Buffer.BlockCopy(_t, 0, _cc, 0, 16);
-					MultiplyByX(_cc);
-
-					/* CC = tweak encrypt block m-1 */
-					TweakCrypt(inputBuffer, inputOffset, _pp, 0, _cc);
-
-					/* Cm = first ptlen % 16 bytes of CC */
-					int i;
-					for (i = 0; i < mo; i++)
-					{
-						_cc[i] = inputBuffer[16 + i + inputOffset];
-						outputBuffer[16 + i + outputOffset] = _pp[i];
-					}
-
-					for (; i < 16; i++)
-					{
-						_cc[i] = _pp[i];
-					}
-
-					/* Cm-1 = Tweak encrypt PP */
-					TweakCrypt(_cc, 0, outputBuffer, outputOffset, _t);
+                {
+                    t1 = _cc;
+					Buffer.BlockCopy(_t, 0, t1, 0, BlockSize);
+					MultiplyByX(t1);
 				}
-				else
-				{
-					/* CC = tweak encrypt block m-1 */
-					TweakCrypt(inputBuffer, inputOffset, _cc, 0, _t);
 
-					/* Cm = first ptlen % 16 bytes of CC */
-					for (var i = 0; i < mo; i++)
-					{
-						_pp[i] = inputBuffer[16 + i + inputOffset];
-						outputBuffer[16 + i + outputOffset] = _cc[i];
-					}
+                /* CC = tweak encrypt block m-1 */
+                TweakCrypt(inputBuffer, inputOffset, _pp, 0, t1);
 
-					for (var i = mo; i < 16; i++) 
-                        _pp[i] = _cc[i];
+                /* Cm = first ptlen % BlockSize bytes of CC */
+				for (var i = 0; i < mo; i++)
+                {
+                    _cc[i] = inputBuffer[BlockSize + i + inputOffset];
+                    outputBuffer[BlockSize + i + outputOffset] = _pp[i];
+                }
 
-                    /* Cm-1 = Tweak encrypt PP */
-					TweakCrypt(_pp, 0, outputBuffer, outputOffset, _t);
-				}
+                for (var i = mo; i < BlockSize; i++)
+                    _cc[i] = _pp[i];
+
+                /* Cm-1 = Tweak encrypt PP */
+                TweakCrypt(_cc, 0, outputBuffer, outputOffset, _t);
 			}
 
 			return inputCount;
@@ -193,12 +176,12 @@ namespace XTSSharp
 		{
 			// TODO Optimize with System.Runtime.Intrinsics.X86 ?
 
-			for (var x = 0; x < 16; x++) 
+			for (var x = 0; x < BlockSize; x++) 
                 outputBuffer[x + outputOffset] = (byte) (inputBuffer[x + inputOffset] ^ t[x]);
 
-            _key1.TransformBlock(outputBuffer, outputOffset, 16, outputBuffer, outputOffset);
+            _key1.TransformBlock(outputBuffer, outputOffset, BlockSize, outputBuffer, outputOffset);
 
-			for (var x = 0; x < 16; x++)
+			for (var x = 0; x < BlockSize; x++)
                 outputBuffer[x + outputOffset] = (byte) (outputBuffer[x + outputOffset] ^ t[x]);
 
             MultiplyByX(t);
@@ -213,7 +196,7 @@ namespace XTSSharp
 			byte cIn = 0, cOut = 0;
 
 			// Left shift by 1 bit.
-			for (var x = 0; x < 16; x++)
+			for (var x = 0; x < BlockSize; x++)
 			{
 				cOut = (byte) (i[x] >> 7);
 				i[x] = (byte) (((i[x] << 1) | cIn) & 0xFF);
