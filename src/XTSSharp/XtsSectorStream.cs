@@ -114,7 +114,7 @@ namespace XTSSharp
 				_encryptor = _xts.CreateEncryptor();
 
 			//encrypt the sector
-			int transformedCount = _encryptor.TransformBlock(buffer, offset, count, _tempBuffer, 0, currentSector);
+			var transformedCount = _encryptor.TransformBlock(buffer, offset, count, _tempBuffer, 0, currentSector);
 
 			//Console.WriteLine("Encrypting sector {0}", currentSector);
 

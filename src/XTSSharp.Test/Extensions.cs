@@ -48,8 +48,8 @@ namespace XTSSharp.Test
 		public static string ToHex(this byte[] bytes)
 		{
 			var buffer = new StringBuilder(bytes.Length*2);
-			int length = bytes.Length;
-			for (int i = 0; i < length; i++)
+			var length = bytes.Length;
+			for (var i = 0; i < length; i++)
 			{
 				buffer.Append(HexLookup[bytes[i] >> 4]);
 				buffer.Append(HexLookup[bytes[i] & 15]);

@@ -1,10 +1,5 @@
 XTSSharp is an implementation of XTS-AES 128/256 for .NET
 
-XTSSharp is copyright (c) 2010 Gareth Lennox (garethl@dwakn.com)
-All rights reserved.
-
-See license.txt for licensing information. 
-
 ----------
 
 XTS-AES is a cipher meant to be used for encryption of block-level devices. It allows
@@ -29,3 +24,7 @@ the full sector size (default of 512 bytes) with the other bytes zeroed (but enc
 writing). Reading it back again will result in the full 512 bytes being available.
 
 Note that the solution file is in Visual Studio 2010 format.
+
+----------
+
+Repo based on https://bitbucket.org/garethl/xtssharp 0e6a81a

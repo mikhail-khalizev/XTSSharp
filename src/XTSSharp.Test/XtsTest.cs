@@ -27,17 +27,17 @@
 using System;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using FluentAssertions;
+using Xunit;
 
 namespace XTSSharp.Test
 {
-	[TestFixture]
 	public class XtsTest
 	{
 		// These are tests that compare this implementation with 
 		//  specified test-vectors (from LibTomCrypt - http://libtom.org)
 
-		[Test]
+		[Fact]
 		public void Test1()
 		{
 			/* #1 32 byte key, 32 byte PTX */
@@ -53,7 +53,7 @@ namespace XTSSharp.Test
 			Run(data);
 		}
 
-		[Test]
+		[Fact]
 		public void Test2()
 		{
 			/* #2, 32 byte key, 32 byte PTX */
@@ -69,7 +69,7 @@ namespace XTSSharp.Test
 			Run(data);
 		}
 		
-		[Test]
+		[Fact]
 		public void Test3()
 		{
 			/* #5 from xts.7, 32 byte key, 32 byte PTX */
@@ -85,7 +85,7 @@ namespace XTSSharp.Test
 			Run(data);
 		}
 
-		[Test]
+		[Fact]
 		public void Test4()
 		{
 			/* #4, 32 byte key, 512 byte PTX  */
@@ -136,7 +136,7 @@ namespace XTSSharp.Test
 
 		}
 
-		[Test]
+		[Fact]
 		public void Test5()
 		{
 			/* #7, 32 byte key, 17 byte PTX */
@@ -152,7 +152,7 @@ namespace XTSSharp.Test
 			Run(data);
 		}
 
-		[Test]
+		[Fact]
 		public void Test6()
 		{
 			/* #15, 32 byte key, 25 byte PTX */
@@ -168,7 +168,7 @@ namespace XTSSharp.Test
 			Run(data);
 		}
 
-		[Test]
+		[Fact]
 		public void Test7()
 		{
 			/* #21, 32 byte key, 31 byte PTX */
@@ -194,10 +194,10 @@ namespace XTSSharp.Test
 			using (var transform = xts.CreateEncryptor())
 			{
 				var bytes = transform.TransformBlock(data.PlainText, 0, data.PlainText.Length, encrypted, 0, data.seqnum);
-				Assert.AreEqual(data.CipherText.Length, bytes, "Unexpected number of encrypted bytes");
+                bytes.Should().Be(data.CipherText.Length, "Unexpected number of encrypted bytes");
 				try
 				{
-					Assert.AreEqual(data.CipherText, encrypted, "Encrypted data does not match");
+                    encrypted.Should().Equal(data.CipherText, "Encrypted data does not match");
 				}
 				catch (Exception)
 				{
@@ -211,11 +211,11 @@ namespace XTSSharp.Test
 			using (var transform = xts.CreateDecryptor())
 			{
 				var bytes = transform.TransformBlock(encrypted, 0, encrypted.Length, decrypted, 0, data.seqnum);
-				Assert.AreEqual(data.PlainText.Length, bytes, "Unexpected number of decrypted bytes");
+                bytes.Should().Be(data.PlainText.Length, "Unexpected number of decrypted bytes");
 
 				try
 				{
-					Assert.AreEqual(data.PlainText, decrypted, "Decrypted data does not match");
+                    decrypted.Should().Equal(data.PlainText, "Decrypted data does not match");
 
 				}
 				catch (Exception)
@@ -237,7 +237,7 @@ namespace XTSSharp.Test
 			public ulong seqnum;
 		}
 
-		[Test]
+		[Fact]
 		public void XtsAes256Test()
 		{
 			var r = new Random(1);
@@ -252,46 +252,44 @@ namespace XTSSharp.Test
 
 			const int sectorSize = 512;
 
-			using (var destination = new MemoryStream())
-			{
-				using (var stream = new XtsSectorStream(destination, xts, sectorSize))
-				{
-					int current = 0;
-					while (current < buffer.Length)
-					{
-						var remaining = (buffer.Length - current);
-						if (remaining > sectorSize)
-							remaining = sectorSize;
+            using var destination = new MemoryStream();
+            using (var stream = new XtsSectorStream(destination, xts, sectorSize))
+            {
+                var current = 0;
+                while (current < buffer.Length)
+                {
+                    var remaining = (buffer.Length - current);
+                    if (remaining > sectorSize)
+                        remaining = sectorSize;
 
-						stream.Write(buffer, current, remaining);
+                    stream.Write(buffer, current, remaining);
 
-						current += remaining;
-					}
-				}
+                    current += remaining;
+                }
+            }
 
-				destination.Position = 0;
+            destination.Position = 0;
 
-				Console.WriteLine(destination.ToArray().Take(512).ToHex());
-				Console.WriteLine(destination.ToArray().Skip(512).Take(512).ToHex());
-				Console.WriteLine(destination.ToArray().Skip(1024).Take(512).ToHex());
-				Console.WriteLine(destination.ToArray().Skip(1536).Take(512).ToHex());
+            Console.WriteLine(destination.ToArray().Take(512).ToHex());
+            Console.WriteLine(destination.ToArray().Skip(512).Take(512).ToHex());
+            Console.WriteLine(destination.ToArray().Skip(1024).Take(512).ToHex());
+            Console.WriteLine(destination.ToArray().Skip(1536).Take(512).ToHex());
 
-				var outBuffer = new byte[buffer.Length];
+            var outBuffer = new byte[buffer.Length];
 
-				using (var stream = new XtsSectorStream(destination, xts, sectorSize))
-				{
-					int offset = 0;
+            using (var stream = new XtsSectorStream(destination, xts, sectorSize))
+            {
+                var offset = 0;
 
-					while (offset < outBuffer.Length)
-					{
-						var bytesRead = stream.Read(outBuffer, offset, sectorSize);
+                while (offset < outBuffer.Length)
+                {
+                    var bytesRead = stream.Read(outBuffer, offset, sectorSize);
 
-						offset += bytesRead;
-					}
-				}
+                    offset += bytesRead;
+                }
+            }
 
-				Assert.AreEqual(buffer, outBuffer);
-			}
-		}
+            Assert.Equal(buffer, outBuffer);
+        }
 	}
 }

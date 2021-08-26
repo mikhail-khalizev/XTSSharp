@@ -24,11 +24,9 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using NUnit.Framework;
 
 namespace XTSSharp.Test
 {
-	[TestFixture]
 	public class XtsAes128StreamTest : XtsStreamTest
 	{
 		protected override Xts Create()

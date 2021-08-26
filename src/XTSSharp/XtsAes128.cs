@@ -70,8 +70,8 @@ namespace XTSSharp
 		{
 			VerifyKey(KEY_LENGTH*2, key);
 
-			byte[] key1 = new byte[KEY_BYTE_LENGTH];
-			byte[] key2 = new byte[KEY_BYTE_LENGTH];
+			var key1 = new byte[KEY_BYTE_LENGTH];
+			var key2 = new byte[KEY_BYTE_LENGTH];
 
 			Buffer.BlockCopy(key, 0, key1, 0, KEY_BYTE_LENGTH);
 			Buffer.BlockCopy(key, KEY_BYTE_LENGTH, key2, 0, KEY_BYTE_LENGTH);
