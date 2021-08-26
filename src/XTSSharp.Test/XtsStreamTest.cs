@@ -31,22 +31,23 @@ using Xunit;
 
 namespace XTSSharp.Test
 {
-	public abstract class XtsStreamTest
-	{
-		protected abstract Xts Create();
+    public abstract class XtsStreamTest
+    {
+        protected abstract Xts Create();
 
-		[Fact]
-		public void Direct_read_write()
-		{
-			var b = new byte[1024];
+        [Fact]
+        public void Direct_read_write()
+        {
+            var b = new byte[1024];
 
-			var xts = Create();
+            var xts = Create();
 
             using var s = new MemoryStream();
             using (var xtsStream = new XtsSectorStream(s, xts, 1024))
             {
                 xtsStream.Write(b, 0, b.Length);
             }
+
             Assert.Equal(b.Length, s.Length);
 
             s.Seek(0, SeekOrigin.Begin);
@@ -60,14 +61,14 @@ namespace XTSSharp.Test
             }
         }
 
-		[Fact]
-		public void Rws_random_read()
-		{
-			var random = new Random(1);
-			var data = new byte[1024*10];
-			random.NextBytes(data);
+        [Fact]
+        public void Rws_random_read()
+        {
+            var random = new Random(1);
+            var data = new byte[1024 * 10];
+            random.NextBytes(data);
 
-			var xts = Create();
+            var xts = Create();
 
             using var s = new MemoryStream();
             using (var stream = new XtsStream(s, xts, 1024))
@@ -96,16 +97,16 @@ namespace XTSSharp.Test
             }
         }
 
-		[Fact]
-		public void Rws_random_read_write()
-		{
-			const int sectorSize = 1024;
+        [Fact]
+        public void Rws_random_read_write()
+        {
+            const int sectorSize = 1024;
 
-			var random = new Random(1);
-			var data = new byte[sectorSize * 10];
-			random.NextBytes(data);
+            var random = new Random(1);
+            var data = new byte[sectorSize * 10];
+            random.NextBytes(data);
 
-			var xts = Create();
+            var xts = Create();
 
             using var s = new MemoryStream();
             using (var stream = new XtsStream(s, xts, 1024))
@@ -124,7 +125,7 @@ namespace XTSSharp.Test
                     var isWrite = random.Next(0, 2) > 0;
                     var index = random.Next(0, data.Length - 1);
                     var bytes = random.Next(0, Math.Min(sectorSize, data.Length - 1 - index));
-						
+
                     if (isWrite)
                     {
                         stream.Position = index;
@@ -151,7 +152,7 @@ namespace XTSSharp.Test
                         {
                             Console.WriteLine(reference.ToHex());
                             Console.WriteLine(r.ToHex());
-								
+
                             throw;
                         }
                     }
@@ -159,12 +160,12 @@ namespace XTSSharp.Test
             }
         }
 
-		[Fact]
-		public void Rws_read_seek_write()
-		{
-			var b = new byte[1024*1024];
+        [Fact]
+        public void Rws_read_seek_write()
+        {
+            var b = new byte[1024 * 1024];
 
-			var xts = Create();
+            var xts = Create();
 
             using var s = new MemoryStream();
             using (var stream = new XtsStream(s, xts, 1024))
@@ -178,7 +179,7 @@ namespace XTSSharp.Test
 
             using (var stream = new XtsStream(s, xts, 1024))
             {
-                stream.Seek((10*1024) + 5, SeekOrigin.Begin);
+                stream.Seek((10 * 1024) + 5, SeekOrigin.Begin);
 
                 var temp = new byte[2048 + 4];
                 stream.Read(temp, 0, temp.Length);
@@ -187,12 +188,12 @@ namespace XTSSharp.Test
             }
         }
 
-		[Fact]
-		public void Rws_read_write()
-		{
-			var b = new byte[1024];
+        [Fact]
+        public void Rws_read_write()
+        {
+            var b = new byte[1024];
 
-			var xts = Create();
+            var xts = Create();
 
             using var s = new MemoryStream();
             using (var stream = new XtsStream(s, xts, 1024))
@@ -214,5 +215,5 @@ namespace XTSSharp.Test
                 Assert.True(temp.All(x => x == 0), temp.ToHex());
             }
         }
-	}
+    }
 }

@@ -40,14 +40,14 @@ namespace XTSSharp
 	/// </remarks>
 	public class XtsCryptoTransform : IDisposable
 	{
-		private readonly byte[] _cc = new byte[16];
 		private readonly bool _decrypting;
 		private readonly ICryptoTransform _key1;
-		private readonly ICryptoTransform _key2;
+        private readonly ICryptoTransform _key2; // tweak
 
+		// TODO Move to local variables?
+        private readonly byte[] _cc = new byte[16];
 		private readonly byte[] _pp = new byte[16];
 		private readonly byte[] _t = new byte[16];
-		private readonly byte[] _tweak = new byte[16];
 
 		/// <summary>
 		/// Creates a new transform
@@ -90,20 +90,20 @@ namespace XTSSharp
 		/// <param name="inputCount">The number of bytes in the input byte array to use as data.</param>
 		/// <param name="outputBuffer">The output to which to write the transform.</param>
 		/// <param name="outputOffset">The offset into the output byte array from which to begin writing data.</param>
-		/// <param name="sector">The sector number of the block</param>
+		/// <param name="sector">The sector number of the block (data unit number).</param>
 		/// <returns>The number of bytes written.</returns>
 		public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset, ulong sector)
 		{
-			FillArrayFromSector(_tweak, sector);
+			FillArrayFromSector(_t, sector);
 
 			int lim;
 
 			/* get number of blocks */
-			var m = inputCount >> 4;
-			var mo = inputCount & 15;
+			var m = inputCount / 16;
+			var mo = inputCount % 16;
 
 			/* encrypt the tweak */
-			_key2.TransformBlock(_tweak, 0, _tweak.Length, _t, 0);
+			_key2.TransformBlock(_t, 0, _t.Length, _t, 0);
 
 			/* for i = 0 to m-2 do */
 			if (mo == 0)
@@ -119,7 +119,7 @@ namespace XTSSharp
 			}
 
 			/* if ptlen not divide 16 then */
-			if (mo > 0)
+			if (0 < mo)
 			{
 				if (_decrypting)
 				{
@@ -151,19 +151,16 @@ namespace XTSSharp
 					TweakCrypt(inputBuffer, inputOffset, _cc, 0, _t);
 
 					/* Cm = first ptlen % 16 bytes of CC */
-					int i;
-					for (i = 0; i < mo; i++)
+					for (var i = 0; i < mo; i++)
 					{
 						_pp[i] = inputBuffer[16 + i + inputOffset];
 						outputBuffer[16 + i + outputOffset] = _cc[i];
 					}
 
-					for (; i < 16; i++)
-					{
-						_pp[i] = _cc[i];
-					}
+					for (var i = mo; i < 16; i++) 
+                        _pp[i] = _cc[i];
 
-					/* Cm-1 = Tweak encrypt PP */
+                    /* Cm-1 = Tweak encrypt PP */
 					TweakCrypt(_pp, 0, outputBuffer, outputOffset, _t);
 				}
 			}
@@ -178,6 +175,7 @@ namespace XTSSharp
 		/// <param name="sector">The sector number</param>
 		private static void FillArrayFromSector(byte[] value, ulong sector)
 		{
+            Array.Clear(value, 0, value.Length);
 			value[7] = (byte) ((sector >> 56) & 255);
 			value[6] = (byte) ((sector >> 48) & 255);
 			value[5] = (byte) ((sector >> 40) & 255);
@@ -193,38 +191,38 @@ namespace XTSSharp
 		/// </summary>
 		private void TweakCrypt(byte[] inputBuffer, int inputOffset, byte[] outputBuffer, int outputOffset, byte[] t)
 		{
+			// TODO Optimize with System.Runtime.Intrinsics.X86 ?
+
+			for (var x = 0; x < 16; x++) 
+                outputBuffer[x + outputOffset] = (byte) (inputBuffer[x + inputOffset] ^ t[x]);
+
+            _key1.TransformBlock(outputBuffer, outputOffset, 16, outputBuffer, outputOffset);
+
 			for (var x = 0; x < 16; x++)
-			{
-				outputBuffer[x + outputOffset] = (byte) (inputBuffer[x + inputOffset] ^ t[x]);
-			}
+                outputBuffer[x + outputOffset] = (byte) (outputBuffer[x + outputOffset] ^ t[x]);
 
-			_key1.TransformBlock(outputBuffer, outputOffset, 16, outputBuffer, outputOffset);
-
-			for (var x = 0; x < 16; x++)
-			{
-				outputBuffer[x + outputOffset] = (byte) (outputBuffer[x + outputOffset] ^ t[x]);
-			}
-
-			MultiplyByX(t);
+            MultiplyByX(t);
 		}
 
 		/// <summary>
-		/// Multiply by x
+		/// Multiply by x.
 		/// </summary>
-		/// <param name="i">The value to multiply by x (LFSR shift)</param>
+		/// <param name="i">The value to multiply by x.</param>
 		private static void MultiplyByX(byte[] i)
 		{
-			byte t = 0, tt = 0;
+			byte cIn = 0, cOut = 0;
 
+			// Left shift by 1 bit.
 			for (var x = 0; x < 16; x++)
 			{
-				tt = (byte) (i[x] >> 7);
-				i[x] = (byte) (((i[x] << 1) | t) & 0xFF);
-				t = tt;
+				cOut = (byte) (i[x] >> 7);
+				i[x] = (byte) (((i[x] << 1) | cIn) & 0xFF);
+				cIn = cOut;
 			}
 
-			if (tt > 0)
-				i[0] ^= 0x87;
+			// Apply GF feedback.
+			if (0 < cOut)
+				i[0] ^= 0x87; // 0b1000_0111
 		}
 	}
 }

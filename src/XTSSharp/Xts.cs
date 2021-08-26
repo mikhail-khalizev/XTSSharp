@@ -35,7 +35,7 @@ namespace XTSSharp
     public class Xts
     {
         private readonly SymmetricAlgorithm _key1;
-        private readonly SymmetricAlgorithm _key2;
+        private readonly SymmetricAlgorithm _key2; // tweak
 
         /// <summary>
         /// Creates a new Xts implementation.
