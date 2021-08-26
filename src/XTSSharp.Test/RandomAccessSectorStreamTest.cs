@@ -143,8 +143,6 @@ namespace XTSSharp.Test
                 Console.WriteLine("");
             }
 
-            var ending = s.ToArray().Skip(b.Length).ToArray();
-
             Assert.Equal(b.Length, s.Length - 10);
             Assert.Equal(b, s.ToArray().Take(b.Length).ToArray());
             Assert.True(s.ToArray().Skip(b.Length).All(x => x == 0), s.ToArray().Skip(b.Length).ToHex());

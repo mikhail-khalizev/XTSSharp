@@ -58,10 +58,10 @@ namespace XTSSharp
 		public XtsCryptoTransform(ICryptoTransform key1, ICryptoTransform key2, bool decrypting)
 		{
 			if (key1 == null)
-				throw new ArgumentNullException("key1");
+				throw new ArgumentNullException(nameof(key1));
 
 			if (key2 == null)
-				throw new ArgumentNullException("key2");
+				throw new ArgumentNullException(nameof(key2));
 
 			_key1 = key1;
 			_key2 = key2;

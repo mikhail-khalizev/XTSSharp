@@ -70,46 +70,34 @@ namespace XTSSharp
 		/// Gets a value indicating whether the current stream supports reading.
 		/// </summary>
 		/// <returns>true if the stream supports reading; otherwise, false.</returns>
-		public override bool CanRead
-		{
-			get { return _baseStream.CanRead; }
-		}
+		public override bool CanRead => _baseStream.CanRead;
 
-		/// <summary>
+        /// <summary>
 		/// Gets a value indicating whether the current stream supports seeking.
 		/// </summary>
 		/// <returns>true if the stream supports seeking; otherwise, false.</returns>
-		public override bool CanSeek
-		{
-			get { return _baseStream.CanSeek; }
-		}
+		public override bool CanSeek => _baseStream.CanSeek;
 
-		/// <summary>
+        /// <summary>
 		/// Gets a value indicating whether the current stream supports writing.
 		/// </summary>
 		/// <returns>true if the stream supports writing; otherwise, false.</returns>
-		public override bool CanWrite
-		{
-			get { return _baseStream.CanWrite; }
-		}
+		public override bool CanWrite => _baseStream.CanWrite;
 
-		/// <summary>
+        /// <summary>
 		/// Gets the length in bytes of the stream.
 		/// </summary>
 		/// <returns>A long value representing the length of the stream in bytes.</returns>
-		public override long Length
-		{
-			get { return _baseStream.Length - _offset; }
-		}
+		public override long Length => _baseStream.Length - _offset;
 
-		/// <summary>
+        /// <summary>
 		/// Gets or sets the position within the current stream.
 		/// </summary>
 		/// <returns>The current position within the stream.</returns>
 		public override long Position
 		{
-			get { return _baseStream.Position - _offset; }
-			set
+			get => _baseStream.Position - _offset;
+            set
 			{
 				ValidateSizeMultiple(value);
 
@@ -122,18 +110,15 @@ namespace XTSSharp
 		/// <summary>
 		/// The current sector this stream is at
 		/// </summary>
-		protected ulong CurrentSector
-		{
-			get { return _currentSector; }
-		}
+		protected ulong CurrentSector => _currentSector;
 
-		/// <summary>
+        /// <summary>
 		/// Validates that the size is a multiple of the sector size
 		/// </summary>
 		private void ValidateSizeMultiple(long value)
 		{
 			if (value%SectorSize != 0)
-				throw new ArgumentException(string.Format("Value needs to be a multiple of {0}", SectorSize));
+				throw new ArgumentException($"Value needs to be a multiple of {SectorSize}");
 		}
 
 		/// <summary>
@@ -142,7 +127,7 @@ namespace XTSSharp
 		protected void ValidateSize(long value)
 		{
 			if (value != SectorSize)
-				throw new ArgumentException(string.Format("Value needs to be {0}", SectorSize));
+				throw new ArgumentException($"Value needs to be {SectorSize}");
 		}
 
 		/// <summary>
@@ -151,7 +136,7 @@ namespace XTSSharp
 		protected void ValidateSize(int value)
 		{
 			if (value != SectorSize)
-				throw new ArgumentException(string.Format("Value needs to be {0}", SectorSize));
+				throw new ArgumentException($"Value needs to be {SectorSize}");
 		}
 
 		/// <summary>

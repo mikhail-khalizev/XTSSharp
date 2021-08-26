@@ -68,49 +68,37 @@ namespace XTSSharp
 		/// Gets a value indicating whether the current stream supports reading.
 		/// </summary>
 		/// <returns>true if the stream supports reading; otherwise, false.</returns>
-		public override bool CanRead
-		{
-			get { return _s.CanRead; }
-		}
+		public override bool CanRead => _s.CanRead;
 
-		/// <summary>
+        /// <summary>
 		/// Gets a value indicating whether the current stream supports seeking.
 		/// </summary>
 		/// <returns>true if the stream supports seeking; otherwise, false.</returns>
-		public override bool CanSeek
-		{
-			get { return _s.CanSeek; }
-		}
+		public override bool CanSeek => _s.CanSeek;
 
-		/// <summary>
+        /// <summary>
 		/// Gets a value indicating whether the current stream supports writing.
 		/// </summary>
 		/// <returns>true if the stream supports writing; otherwise, false.</returns>
-		public override bool CanWrite
-		{
-			get { return _s.CanWrite; }
-		}
+		public override bool CanWrite => _s.CanWrite;
 
-		/// <summary>
+        /// <summary>
 		/// Gets the length in bytes of the stream.
 		/// </summary>
 		/// <returns>A long value representing the length of the stream in bytes.</returns>
-		public override long Length
-		{
-			get { return _s.Length + _bufferPos; }
-		}
+		public override long Length => _s.Length + _bufferPos;
 
-		/// <summary>
+        /// <summary>
 		/// Gets or sets the position within the current stream.
 		/// </summary>
 		/// <returns>The current position within the stream.</returns>
 		public override long Position
 		{
-			get { return _bufferLoaded ? (_s.Position - _bufferSize + _bufferPos) : _s.Position + _bufferPos; }
-			set
+			get => _bufferLoaded ? (_s.Position - _bufferSize + _bufferPos) : _s.Position + _bufferPos;
+            set
 			{
 				if (value < 0L)
-					throw new ArgumentOutOfRangeException("value");
+					throw new ArgumentOutOfRangeException(nameof(value));
 
 				var sectorPosition = (value%_bufferSize);
 				var position = value - sectorPosition;

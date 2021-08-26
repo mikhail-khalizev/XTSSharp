@@ -39,7 +39,7 @@ namespace XTSSharp
 		/// <param name="baseStream">The base stream</param>
 		/// <param name="xts">Xts implementation to use</param>
 		public XtsStream(Stream baseStream, Xts xts)
-			: this(baseStream, xts, XtsSectorStream.DEFAULT_SECTOR_SIZE)
+			: this(baseStream, xts, XtsSectorStream.DefaultSectorSize)
 		{
 		}
 

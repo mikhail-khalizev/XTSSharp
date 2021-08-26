@@ -37,7 +37,7 @@ namespace XTSSharp
 		/// <summary>
 		/// The default sector size
 		/// </summary>
-		public const int DEFAULT_SECTOR_SIZE = 512;
+		public const int DefaultSectorSize = 512;
 
 		private readonly byte[] _tempBuffer;
 		private readonly Xts _xts;
@@ -50,7 +50,7 @@ namespace XTSSharp
 		/// <param name="baseStream">The base stream</param>
 		/// <param name="xts">The xts transform</param>
 		public XtsSectorStream(Stream baseStream, Xts xts)
-			: this(baseStream, xts, DEFAULT_SECTOR_SIZE)
+			: this(baseStream, xts, DefaultSectorSize)
 		{
 		}
 

@@ -43,31 +43,19 @@ namespace XTSSharp.Test
 			_random = new Random(seed);
 		}
 
-		public override bool CanRead
-		{
-			get { return true; }
-		}
+		public override bool CanRead => true;
 
-		public override bool CanSeek
-		{
-			get { return false; }
-		}
+        public override bool CanSeek => false;
 
-		public override bool CanWrite
-		{
-			get { return false; }
-		}
+        public override bool CanWrite => false;
 
-		public override long Length
-		{
-			get { throw new NotImplementedException(); }
-		}
+        public override long Length => throw new NotImplementedException();
 
-		public override long Position
+        public override long Position
 		{
-			get { throw new NotImplementedException(); }
-			set { throw new NotImplementedException(); }
-		}
+			get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
 
 		public override void Flush()
 		{
